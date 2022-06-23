@@ -3,7 +3,7 @@ Pod::Spec.new do |s|
   
   # 1 - Info
   s.name             = 'RCSceneRoom'
-  s.version          = '0.0.3.5'
+  s.version          = '0.0.3.6'
   s.summary          = 'Scene Room'
   s.description      = "Scene Room module"
   s.homepage         = 'https://github.com/rongcloud'

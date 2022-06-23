@@ -40,5 +40,10 @@ class MusicService {
         let api = RCMusicService.moveMusic(roomId: roomId, fromId: fromId, toId: toId)
         musicProvider.request(api, completion: completion)
     }
+    
+    func uploadAudio(data: Data, extensions: String?, completion: @escaping Completion) {
+        let api = RCUploadService.uploadAudio(data: data, extensions: extensions)
+        uploadProvider.request(api, completion: completion)
+    }
 }
 

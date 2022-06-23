@@ -17,6 +17,67 @@ public class RCSMusicDelegate: NSObject, RCMusicEngineDelegate {
     
     var autoPlayMusic = false
     
+    public func addLocalMusic(_ music: RCMusicInfo, completion: @escaping (Bool) -> Void) {
+        
+        guard var music = music as? MusicInfo, let roomId = currentRoom?.roomId, let musicId = music.musicId, let localPath = music.localDataFilePath else {
+            SVProgressHUD.showError(withStatus: "参数错误")
+            return completion(false)
+        }
+        
+        func downloadFailed() {
+            completion(false)
+            clear()
+            SVProgressHUD.showError(withStatus: "下载音乐失败")
+        }
+        
+        let url = URL(fileURLWithPath: localPath)
+        let data = try! Data(contentsOf:url)
+        musicService.uploadAudio(data: data, extensions: url.pathExtension) { [weak self] result in
+            guard let self = self else { return }
+            switch result.map(RCSceneWrapper<String>.self) {
+            case let .success(response):
+                guard let uri = response.data else { return }
+                let urlString = Environment.url.absoluteString + "/file/show?path=" + uri
+                do {
+                    if let fullPath = music.fullPath(), !FileManager.default.fileExists(atPath: fullPath) {
+                        try FileManager.default.copyItem(at: URL(fileURLWithPath: localPath), to: URL(fileURLWithPath: fullPath))
+                    }
+                    let attribute = try FileManager.default.attributesOfItem(atPath: localPath)
+                    let fileSize = attribute[.size] as? Int ?? 0
+                    musicService.addMusic(roomId: roomId,
+                                           musicName: music.musicName ?? "",
+                                           author: music.author ?? "",
+                                           type: 3,
+                                           url: urlString,
+                                           backgroundUrl: music.coverUrl ?? "",
+                                           thirdMusicId: musicId,
+                                           size: fileSize/1024) { result in
+                        switch result.map(RCSceneResponse.self) {
+                        case .success:
+                            completion(true)
+                            if (RCSMusicDataSource.instance.ids.count == 0) {
+                                //当列表为空时，添加的第一首音乐自动播放
+                                self.autoPlayMusic = true
+                            }
+                            RCSMusicDataSource.instance.ids.insert(musicId)
+                            NotificationCenter.default.post(name: .RCMusicLocalDataChanged, object: nil)
+                            self.clear()
+                            self.semaphore.signal()
+                        case .failure:
+                            downloadFailed()
+                        }
+                    }
+                } catch {
+                    downloadFailed()
+                    SVProgressHUD.showError(withStatus: "上传音乐失败")
+                }
+            case .failure(_):
+                downloadFailed()
+                SVProgressHUD.showError(withStatus: "上传音乐失败")
+            }
+        }
+    }
+    
     public func downloadedMusic(_ music: RCMusicInfo, completion: @escaping (Bool) -> Void) {
         
         guard

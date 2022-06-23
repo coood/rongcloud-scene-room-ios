@@ -17,6 +17,6 @@ extension String {
         CC_MD5(cCharArray, CC_LONG(cCharArray!.count - 1), &uint8Array)
         let data = Data(bytes: &uint8Array, count: Int(CC_MD5_DIGEST_LENGTH))
         let base64String = data.base64EncodedString()
-        return base64String
+        return base64String.replacingOccurrences(of: "/", with: "")
     }
 }

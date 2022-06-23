@@ -181,12 +181,19 @@ public class RCSMusicDataSource: NSObject, RCMusicEngineDataSource {
 
     
     public func fetchMusicDetail(with info: RCMusicInfo, completion: @escaping (RCMusicInfo?) -> Void) {
-        guard let musicId = info.musicId else {
+        guard let info = info as? MusicInfo, let musicId = info.musicId else {
             print("参数错误，音乐ID为空")
             SVProgressHUD.showError(withStatus: "参数错误，音乐ID为空")
             completion(nil)
             return
         }
+        
+        //歌曲链接中带有服务域名证明是我们自己存储的音乐直接返回音乐信息，不需要跟曲库获取最新的播放链接
+        if let url = info.fileUrl, url.contains("rongcloud") {
+            completion(info)
+            return
+        }
+        
         
         HFOpenApiManager.shared().trafficHQListen(withMusicId: musicId, audioFormat: nil, audioRate: nil) { response in
             guard let response = response as? [AnyHashable : Any], let detail = RCMusicDetail.yy_model(with: response) else {
@@ -342,14 +349,13 @@ extension RCSMusicDataSource: UIDocumentPickerDelegate, UIDocumentInteractionCon
         }
         
         DispatchQueue.global().async {
-            for music in musics {
-                if (music.localDataFilePath != nil) {
-                    RCSMusicDelegate.instance.downloadedMusic(music) { success in
-                        if (success) {
-                            SVProgressHUD.showSuccess(withStatus: "本地文件上传成功")
-                        } else {
-                            SVProgressHUD.showError(withStatus: "本地文件上传失败")
-                        }
+            if let music = musics.first {
+                SVProgressHUD.show()
+                RCSMusicDelegate.instance.addLocalMusic(music) { success in
+                    if (success) {
+                        SVProgressHUD.showSuccess(withStatus: "本地文件上传成功")
+                    } else {
+                        SVProgressHUD.showError(withStatus: "本地文件上传失败")
                     }
                 }
             }
